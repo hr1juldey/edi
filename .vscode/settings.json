@@ -1,0 +1,34 @@
+{
+  "python.defaultInterpreterPath": "./.venv/bin/python",
+  "python.analysis.extraPaths": [
+    "./src/","./tests/"
+
+  ],
+
+  "workbench.editorAssociations": {
+    "*.md": "vscode.markdown.preview.editor"
+  },
+
+  
+ 
+  //"terminal.explorerKind": "external",
+
+
+  "terminal.integrated.defaultProfile.linux": "bash",
+  "terminal.integrated.fontFamily": "'DejaVu Sans Mono','Noto Sans Bengali','monospace'",
+  "terminal.integrated.fontSize": 14,
+  "terminal.integrated.gpuAcceleration": "on",
+  "terminal.integrated.scrollback": 80000,
+
+  // Keep unlimited editors open
+  "workbench.editor.enablePreview": false,
+  "workbench.editor.limit.enabled": true,
+  "workbench.editor.limit.perEditorGroup": false,
+  "workbench.editor.limit.value": 1000,
+
+  "python.analysis.autoSearchPaths": true,
+  "python.analysis.autoImportCompletions": true,
+  "python.terminal.activateEnvironment": true,
+  "pylance.inlayHints.variableTypes": true,
+  "pylance.inlayHints.functionReturnTypes": true
+}

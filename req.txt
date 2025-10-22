@@ -1,0 +1,43 @@
+# requirements.txt — targeted for Python 3.12 (tested against PyPI metadata as of Oct 22, 2025)
+# NOTE: torch is NOT pin-installed here — see the note below for the recommended installation method.
+
+# Numerical & scientific
+numpy>=2.3.4
+scipy>=1.15.1
+
+# Image processing & computer vision
+# opencv-python>=4.12.0  # prebuilt OpenCV wheels
+Pillow>=12.0.0
+scikit-image>=0.25.2
+
+# ML infra (lightweight helpers)
+ultralytics>=8.3.220      # Ultralytics (SAM integration, YOLO, etc.)
+
+# Data analysis & plotting
+pandas>=2.3.3
+matplotlib>=3.10.7
+seaborn>=0.13.2
+tqdm>=4.66.5
+
+# Utilities & niceties used across the scripts
+python-dotenv>=1.0.0      # optional, recommended for config via .env
+typing-extensions>=4.7.1  # sometimes needed on newer Python versions
+
+
+# LLM and instruction tuning
+
+dspy>=3.0.0
+
+# Data 
+
+pydantic>=2.12.3
+
+# TUI
+
+textual>=6.4.0
+textual-dev>=1.8.0
+
+# Server and MCP
+
+fastmcp>=2.12.5
+fastapi>=0.119.1

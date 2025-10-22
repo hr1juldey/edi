@@ -1,4 +1,4 @@
-# File Structure & Module Descriptions
+# File Structure & Module Descriptions (LLD or low level design)
 
 ```bash
 edi/
