@@ -13,7 +13,7 @@ EDI is a conversational AI image editing assistant that bridges the gap between 
 
 ### System Context
 
-```
+```bash
 ┌─────────────────────────────────────────────────────────────┐
 │                         USER                                │
 │                    (Terminal Session)                       │
