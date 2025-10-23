@@ -660,10 +660,10 @@ class ComfyUIClient:
      ▼
 ┌─────────────────────────────────┐
 │   TUI Clarification Screen      │
-│   [IF confidence < 0.7]          │
-│   ├─ Display questions           │
-│   ├─ Collect user responses      │
-│   └─ Update intent context       │
+│   [IF confidence < 0.7]         │
+│   ├─ Display questions          │
+│   ├─ Collect user responses     │
+│   └─ Update intent context      │
 └────┬────────────────────────────┘
      │
      │ 4. Refined Intent
@@ -671,37 +671,37 @@ class ComfyUIClient:
 ┌─────────────────────────────────┐
 │   Prompt Generator (DSpy)       │
 │   ├─ Generate base prompts      │
-│   ├─ Refine iteration 1          │
-│   ├─ Refine iteration 2          │
-│   └─ Refine iteration 3          │
+│   ├─ Refine iteration 1         │
+│   ├─ Refine iteration 2         │
+│   └─ Refine iteration 3         │
 └────┬────────────────────────────┘
      │
      │ 5. Final Prompts
      ▼
 ┌─────────────────────────────────┐
 │   TUI Review Screen             │
-│   ├─ Display prompts             │
-│   ├─ Show refinement evolution   │
-│   └─ [User Approval Required]    │
+│   ├─ Display prompts            │
+│   ├─ Show refinement evolution  │
+│   └─ [User Approval Required]   │
 └────┬────────────────────────────┘
      │
      │ 6. Approved Prompts
      ▼
 ┌─────────────────────────────────┐
 │   ComfyUI Client                │
-│   ├─ Submit edit job             │
-│   ├─ Poll status (async)         │
-│   └─ Download result             │
+│   ├─ Submit edit job            │
+│   ├─ Poll status (async)        │
+│   └─ Download result            │
 └────┬────────────────────────────┘
      │
      │ 7. edited_image_path
      ▼
 ┌─────────────────────────────────┐
 │   Validation Loop               │
-│   ├─ Re-analyze edited image     │
-│   ├─ Compute delta vs original   │
-│   ├─ Calculate alignment score   │
-│   └─ Determine action             │
+│   ├─ Re-analyze edited image    │
+│   ├─ Compute delta vs original  │
+│   ├─ Calculate alignment score  │
+│   └─ Determine action           │
 └────┬────────────────────────────┘
      │
      ├─ IF score >= 0.8 → Accept
@@ -722,21 +722,21 @@ class ComfyUIClient:
      ▼
 ┌─────────────────────────────────┐
 │   BestOfN Generator (DSpy)      │
-│   ├─ Generate variation A        │
-│   ├─ Generate variation B        │
-│   └─ Generate variation C        │
-│       (using different rollout   │
-│        IDs for diversity)        │
+│   ├─ Generate variation A       │
+│   ├─ Generate variation B       │
+│   └─ Generate variation C       │
+│       (using different rollout  │
+│        IDs for diversity)       │
 └────┬────────────────────────────┘
      │
      │ 6. Prompts A, B, C
      ▼
 ┌─────────────────────────────────┐
 │   ComfyUI Parallel Submission   │
-│   ├─ Submit job A                │
-│   ├─ Submit job B                │
-│   └─ Submit job C                │
-│       (wait for all completions) │
+│   ├─ Submit job A               │
+│   ├─ Submit job B               │
+│   └─ Submit job C               │
+│       (wait for all completions)│
 └────┬────────────────────────────┘
      │
      │ 7. edited_A, edited_B, edited_C
@@ -744,8 +744,8 @@ class ComfyUIClient:
 ┌─────────────────────────────────┐
 │   TUI Variation Grid            │
 │   ├─ Display all 3 side-by-side │
-│   ├─ User selects best           │
-│   └─ Option: blend regions       │
+│   ├─ User selects best          │
+│   └─ Option: blend regions      │
 └────┬────────────────────────────┘
      │
      │ 8. Selected variation OR blend instructions
@@ -753,9 +753,9 @@ class ComfyUIClient:
 [IF blend requested]
 ┌─────────────────────────────────┐
 │   Region Compositor             │
-│   ├─ Extract masks for regions   │
-│   ├─ Poisson blend transition    │
-│   └─ Generate composite image    │
+│   ├─ Extract masks for regions  │
+│   ├─ Poisson blend transition   │
+│   └─ Generate composite image   │
 └────┬────────────────────────────┘
      │
      ▼
