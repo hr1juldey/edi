@@ -3,6 +3,7 @@
 [Back to Index](../index.md)
 
 ## Purpose
+
 Workflow coordination, DSpy pipelines, state management using DSpy 2.6+
 
 ## Component Design
@@ -106,9 +107,9 @@ class ValidationLoop:
 
 This module uses the **DSpy** library
 
-1.  **Request for Information:** Provide a link to the official documentation for `DSpy`
+1. **Request for Information:** Provide a link to the official documentation for `DSpy`
 
-2.  **Search and Test:** I will search for examples of `dspy.Signature` and `dspy.ChainOfThought` to verify my understanding before implementation
+2. **Search and Test:** I will search for examples of `dspy.Signature` and `dspy.ChainOfThought` to verify my understanding before implementation
 
 ## Sub-modules
 

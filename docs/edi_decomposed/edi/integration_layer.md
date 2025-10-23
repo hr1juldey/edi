@@ -3,6 +3,7 @@
 [Back to Index](../index.md)
 
 ## Purpose
+
 ComfyUI API client, image I/O using requests and Pillow
 
 ## Component Design
