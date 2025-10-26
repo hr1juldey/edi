@@ -130,44 +130,82 @@ class MockEditProcessor:
             # Apply color change to masked regions
             result_img = img_array.copy()
             
-            for mask_info in masks:
-                # For mock purposes, we'll use the bbox to apply changes
-                x1, y1, x2, y2 = mask_info['bbox']
+            for i, mask_info in enumerate(masks):
+                print(f"[DEBUG] Processing mask {i} with info: {mask_info}")
                 
-                # Ensure coordinates are within image bounds
-                y1 = max(0, min(y1, img_array.shape[0] - 1))
-                y2 = max(0, min(y2, img_array.shape[0] - 1))
-                x1 = max(0, min(x1, img_array.shape[1] - 1))
-                x2 = max(0, min(x2, img_array.shape[1] - 1))
-                
-                if y1 < y2 and x1 < x2:  # Valid bbox
-                    # Extract the region
-                    region = result_img[y1:y2, x1:x2]
+                # Check if mask has an actual mask array, otherwise use bbox
+                if 'mask' in mask_info and mask_info['mask'] is not None:
+                    # Use the actual mask array instead of just the bounding box
+                    mask_array = mask_info['mask']
+                    # Ensure mask is the same size as the image
+                    if mask_array.shape[:2] == img_array.shape[:2]:
+                        print(f"[DEBUG] Using mask array for mask {i}")
+                        # Apply color changes using the mask
+                        mask_bool = mask_array > 0
+                        if target_color == "red":
+                            result_img[mask_bool, 0] = np.clip(result_img[mask_bool, 0] * 1.3, 0, 255)
+                            result_img[mask_bool, 1] = np.clip(result_img[mask_bool, 1] * 0.7, 0, 255)
+                            result_img[mask_bool, 2] = np.clip(result_img[mask_bool, 2] * 0.7, 0, 255)
+                        elif target_color == "blue":
+                            result_img[mask_bool, 0] = np.clip(result_img[mask_bool, 0] * 0.7, 0, 255)
+                            result_img[mask_bool, 1] = np.clip(result_img[mask_bool, 1] * 0.7, 0, 255)
+                            result_img[mask_bool, 2] = np.clip(result_img[mask_bool, 2] * 1.3, 0, 255)
+                        elif target_color == "green":
+                            result_img[mask_bool, 0] = np.clip(result_img[mask_bool, 0] * 0.7, 0, 255)
+                            result_img[mask_bool, 1] = np.clip(result_img[mask_bool, 1] * 1.3, 0, 255)
+                            result_img[mask_bool, 2] = np.clip(result_img[mask_bool, 2] * 0.7, 0, 255)
+                        elif target_color == "yellow":
+                            result_img[mask_bool, 0] = np.clip(result_img[mask_bool, 0] * 1.2, 0, 255)
+                            result_img[mask_bool, 1] = np.clip(result_img[mask_bool, 1] * 1.2, 0, 255)
+                            result_img[mask_bool, 2] = np.clip(result_img[mask_bool, 2] * 0.6, 0, 255)
+                        elif target_color == "purple":
+                            result_img[mask_bool, 0] = np.clip(result_img[mask_bool, 0] * 1.1, 0, 255)
+                            result_img[mask_bool, 1] = np.clip(result_img[mask_bool, 1] * 0.6, 0, 255)
+                            result_img[mask_bool, 2] = np.clip(result_img[mask_bool, 2] * 1.1, 0, 255)
+                    else:
+                        print(f"[DEBUG] Mask dimensions don't match image, falling back to bbox")
+                        # Fall back to bbox if mask dimensions don't match
+                        x1, y1, x2, y2 = mask_info['bbox']
+                else:
+                    print(f"[DEBUG] No mask array found, using bbox")
+                    # For mock purposes, we'll use the bbox to apply changes
+                    x1, y1, x2, y2 = mask_info['bbox']
                     
-                    # Apply color transformation
-                    if target_color == "red":
-                        region[:, :, 0] = np.clip(region[:, :, 0] * 1.3, 0, 255)
-                        region[:, :, 1] = np.clip(region[:, :, 1] * 0.7, 0, 255)
-                        region[:, :, 2] = np.clip(region[:, :, 2] * 0.7, 0, 255)
-                    elif target_color == "blue":
-                        region[:, :, 0] = np.clip(region[:, :, 0] * 0.7, 0, 255)
-                        region[:, :, 1] = np.clip(region[:, :, 1] * 0.7, 0, 255)
-                        region[:, :, 2] = np.clip(region[:, :, 2] * 1.3, 0, 255)
-                    elif target_color == "green":
-                        region[:, :, 0] = np.clip(region[:, :, 0] * 0.7, 0, 255)
-                        region[:, :, 1] = np.clip(region[:, :, 1] * 1.3, 0, 255)
-                        region[:, :, 2] = np.clip(region[:, :, 2] * 0.7, 0, 255)
-                    elif target_color == "yellow":
-                        region[:, :, 0] = np.clip(region[:, :, 0] * 1.2, 0, 255)
-                        region[:, :, 1] = np.clip(region[:, :, 1] * 1.2, 0, 255)
-                        region[:, :, 2] = np.clip(region[:, :, 2] * 0.6, 0, 255)
-                    elif target_color == "purple":
-                        region[:, :, 0] = np.clip(region[:, :, 0] * 1.1, 0, 255)
-                        region[:, :, 1] = np.clip(region[:, :, 1] * 0.6, 0, 255)
-                        region[:, :, 2] = np.clip(region[:, :, 2] * 1.1, 0, 255)
+                    # Ensure coordinates are within image bounds
+                    y1 = max(0, min(y1, img_array.shape[0] - 1))
+                    y2 = max(0, min(y2, img_array.shape[0] - 1))
+                    x1 = max(0, min(x1, img_array.shape[1] - 1))
+                    x2 = max(0, min(x2, img_array.shape[1] - 1))
                     
-                    # Place the modified region back
-                    result_img[y1:y2, x1:x2] = region
+                    if y1 < y2 and x1 < x2:  # Valid bbox
+                        print(f"[DEBUG] Applying color change to bbox ({x1}, {y1}, {x2}, {y2})")
+                        # Extract the region
+                        region = result_img[y1:y2, x1:x2]
+                        
+                        # Apply color transformation
+                        if target_color == "red":
+                            region[:, :, 0] = np.clip(region[:, :, 0] * 1.3, 0, 255)
+                            region[:, :, 1] = np.clip(region[:, :, 1] * 0.7, 0, 255)
+                            region[:, :, 2] = np.clip(region[:, :, 2] * 0.7, 0, 255)
+                        elif target_color == "blue":
+                            region[:, :, 0] = np.clip(region[:, :, 0] * 0.7, 0, 255)
+                            region[:, :, 1] = np.clip(region[:, :, 1] * 0.7, 0, 255)
+                            region[:, :, 2] = np.clip(region[:, :, 2] * 1.3, 0, 255)
+                        elif target_color == "green":
+                            region[:, :, 0] = np.clip(region[:, :, 0] * 0.7, 0, 255)
+                            region[:, :, 1] = np.clip(region[:, :, 1] * 1.3, 0, 255)
+                            region[:, :, 2] = np.clip(region[:, :, 2] * 0.7, 0, 255)
+                        elif target_color == "yellow":
+                            region[:, :, 0] = np.clip(region[:, :, 0] * 1.2, 0, 255)
+                            region[:, :, 1] = np.clip(region[:, :, 1] * 1.2, 0, 255)
+                            region[:, :, 2] = np.clip(region[:, :, 2] * 0.6, 0, 255)
+                        elif target_color == "purple":
+                            region[:, :, 0] = np.clip(region[:, :, 0] * 1.1, 0, 255)
+                            region[:, :, 1] = np.clip(region[:, :, 1] * 0.6, 0, 255)
+                            region[:, :, 2] = np.clip(region[:, :, 2] * 1.1, 0, 255)
+                        
+                        # Place the modified region back
+                        result_img[y1:y2, x1:x2] = region
         else:
             # Apply to entire image if no masks provided
             result_img = img_array.copy()

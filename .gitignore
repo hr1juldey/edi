@@ -6,5 +6,6 @@ dist/
 wheels/
 *.egg-info
 sam_b.pt
+*.pt
 # Virtual environments
 .venv

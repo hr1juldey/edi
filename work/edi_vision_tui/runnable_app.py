@@ -743,11 +743,13 @@ class EDIVisionSystem:
         """
         start_time = time.time()
         
-        # Step 1: Extract keywords
-        keywords = self.mask_generator._extract_keywords(prompt)
+        # Step 1: Extract keywords - use the improved mask generator's function
+        from mask_generator import decompose_prompt
+        keywords = decompose_prompt(prompt)
         
-        # Step 2: Create masks
-        mask_result = self.mask_generator.generate_mock_mask(image_path, prompt)
+        # Step 2: Create masks using the advanced mask generator
+        from mask_generator import generate_mask_for_prompt
+        mask_result = generate_mask_for_prompt(image_path, prompt)
         if not mask_result['success']:
             return {'error': f'Mask generation failed: {mask_result["error"]}'}
         
