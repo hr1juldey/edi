@@ -1,0 +1,10 @@
+# Requirements for EDI Vision Subsystem TUI Application
+numpy>=1.21.0
+opencv-python>=4.5.0
+Pillow>=8.0.0
+scikit-image>=0.18.0
+textual>=0.40.0
+torch>=1.12.0
+torchvision>=0.13.0
+ultralytics>=8.0.0
+open-clip-torch>=2.0.0

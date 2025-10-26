@@ -1,0 +1,48 @@
+{
+  "image_description": {
+    "overall_scene": "A breathtaking mountainous landscape with a village nestled in the valley, featuring green-roofed houses, prayer flags, and a runway on a hilltop, set against snow-capped peaks under a clear sky.",
+    "elements": [
+      {
+        "name": "Snow-capped mountains",
+        "position": "Background, center to top-right",
+        "color": "White with golden sunlight highlights",
+        "details": "Towering peaks with sharp ridges, partially covered in snow, illuminated by warm sunlight."
+      },
+      {
+        "name": "Village",
+        "position": "Foreground to midground, lower half",
+        "color": "Green roofs, gray stone walls, earthy brown paths",
+        "details": "Cluster of houses with vibrant green metal roofs, stone-built structures, and narrow dirt or stone pathways winding through them."
+      },
+      {
+        "name": "Runway",
+        "position": "Midground, center-left on a hilltop",
+        "color": "Gray asphalt with white markings",
+        "details": "Long, straight runway with visible white lines, surrounded by green-brown terrain."
+      },
+      {
+        "name": "Prayer flags",
+        "position": "Foreground, left and right edges",
+        "color": "Multi-colored (blue, red, green, yellow, white)",
+        "details": "Strings of traditional Tibetan prayer flags fluttering in the wind, attached to poles near the village."
+      },
+      {
+        "name": "Sky",
+        "position": "Top portion of the image",
+        "color": "Clear blue with soft gradient to pale orange near horizon",
+        "details": "Wide expanse of clear sky with a few small birds flying, transitioning to a warm glow near the mountain peaks."
+      },
+      {
+        "name": "Valley river",
+        "position": "Midground, right side",
+        "color": "Brownish-gray water with green banks",
+        "details": "Winding river cutting through the valley, bordered by green vegetation and rocky banks."
+      }
+    ],
+    "accessibility_notes": {
+      "layout": "Top to bottom: Sky → Mountains → Runway → Village → Prayer flags → River",
+      "key_colors": ["Green", "White", "Gray", "Blue", "Red", "Yellow"],
+      "spatial_relations": "The village is below the runway, which sits on a hill; prayer flags frame the scene on both sides; the river flows along the right edge of the valley."
+    }
+  }
+}
