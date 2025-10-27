@@ -2,6 +2,8 @@
 
 Local vision analysis using Ollama's vision models (qwen2.5vl:7b) without consuming cloud tokens.
 
+**Universal Compatibility**: Works with Claude Code, Qwen Code CLI, and Gemini CLI through the standard Model Context Protocol (MCP).
+
 ## Features
 
 - 🔍 **Image analysis** using local Ollama vision models
@@ -10,12 +12,56 @@ Local vision analysis using Ollama's vision models (qwen2.5vl:7b) without consum
 - 📝 **Multiple log levels** (TRACE, DEBUG, INFO, WARNING, ERROR)
 - ✅ **Health check** resource to verify Ollama availability
 - 🎯 **Context-aware logging** for debugging
+- 🌐 **Universal MCP compatibility** - works with multiple AI CLIs
 
-## Installation
+## Compatibility Matrix
 
-This server is already configured in your project. FastMCP is installed via `pyproject.toml`.
+| AI CLI | MCP Support | Status | Config File | Verification Command |
+|--------|-------------|--------|-------------|---------------------|
+| **Claude Code** | ✅ Native | ✅ Tested | `~/.config/claude/claude_desktop_config.json` | Built-in |
+| **Qwen Code CLI** | ✅ Native | ✅ Tested | `~/.qwen/settings.json` | `/mcp` |
+| **Gemini CLI** | ✅ Native | ✅ Tested | `~/.gemini/settings.json` | `gemini mcp list` |
 
-### Prerequisites
+**Recommended Use Cases:**
+- **Claude Code**: Complex reasoning tasks, interactive development
+- **Qwen Code CLI**: Batch processing, large codebases, simpler tasks with high volume
+- **Gemini CLI**: Multi-modal tasks, Google ecosystem integration
+
+## Quick Start
+
+Choose your AI CLI and follow the setup:
+
+### Universal Setup (All CLIs at once)
+
+```bash
+# Configure all detected AI CLIs
+python setup_universal.py --log-level INFO
+
+# Configure specific CLIs only
+python setup_universal.py --cli claude,qwen
+```
+
+### Individual CLI Setup
+
+```bash
+# Claude Code
+python setup_claude_config.py --log-level INFO
+
+# Qwen Code CLI
+python setup_qwen_config.py --log-level INFO
+
+# Gemini CLI
+python setup_gemini_config.py --log-level INFO
+```
+
+### Test the Server
+
+```bash
+# Test with a sample image
+python test_vision.py ../images/IP.jpeg "Describe this image"
+```
+
+## Prerequisites
 
 1. **Ollama running locally**:
    ```bash
@@ -80,20 +126,37 @@ result = await see_image(
 health = await read_resource("vision://health")
 ```
 
-## Configuration for Claude Code
+## Configuration
 
-To enable this MCP server in Claude Code, add to your Claude configuration:
+### Automatic Configuration (Recommended)
 
-### For Linux/Mac: `~/.config/claude/claude_desktop_config.json`
+Use the setup scripts for automatic configuration:
+
+```bash
+# Configure all CLIs at once
+python setup_universal.py
+
+# Or configure individual CLIs
+python setup_claude_config.py   # For Claude Code
+python setup_qwen_config.py     # For Qwen Code CLI
+python setup_gemini_config.py   # For Gemini CLI
+```
+
+### Manual Configuration
+
+If you prefer manual configuration, add the following to your CLI's config file:
+
+#### Claude Code
+
+**Linux/Mac**: `~/.config/claude/claude_desktop_config.json`
+**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 
 ```json
 {
   "mcpServers": {
     "local-vision": {
       "command": "python",
-      "args": [
-        "/home/riju279/Documents/Code/Zonko/EDI/edi/mcp_servers/vision_server.py"
-      ],
+      "args": ["/absolute/path/to/vision_server.py"],
       "env": {
         "LOG_LEVEL": "INFO",
         "OLLAMA_BASE_URL": "http://localhost:11434",
@@ -104,25 +167,53 @@ To enable this MCP server in Claude Code, add to your Claude configuration:
 }
 ```
 
-### For Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+#### Qwen Code CLI
+
+**Config file**: `~/.qwen/settings.json` (user-level) or `.qwen/settings.json` (project-level)
 
 ```json
 {
   "mcpServers": {
     "local-vision": {
       "command": "python",
-      "args": [
-        "C:\\path\\to\\edi\\mcp_servers\\vision_server.py"
-      ],
+      "args": ["/absolute/path/to/vision_server.py"],
       "env": {
         "LOG_LEVEL": "INFO",
         "OLLAMA_BASE_URL": "http://localhost:11434",
         "VISION_MODEL": "qwen2.5vl:7b"
-      }
+      },
+      "timeout": 120000,
+      "trust": false
     }
   }
 }
 ```
+
+**Verification**: Type `/mcp` in Qwen CLI to see loaded servers
+
+#### Gemini CLI
+
+**Config file**: `~/.gemini/settings.json` (user-level) or `.gemini/settings.json` (project-level)
+
+```json
+{
+  "mcpServers": {
+    "local-vision": {
+      "command": "python",
+      "args": ["/absolute/path/to/vision_server.py"],
+      "env": {
+        "LOG_LEVEL": "INFO",
+        "OLLAMA_BASE_URL": "http://localhost:11434",
+        "VISION_MODEL": "qwen2.5vl:7b"
+      },
+      "timeout": 120000,
+      "trust": false
+    }
+  }
+}
+```
+
+**Verification**: Run `gemini mcp list` to see configured servers
 
 ### Log Level Options
 
@@ -198,6 +289,38 @@ Structured dictionary with:
 **Color analysis**:
 ```
 "What are the dominant colors in this image? Return as JSON array with hex codes."
+```
+
+### CLI-Specific Usage
+
+#### Using with Claude Code
+```
+# Claude automatically discovers MCP tools
+"Use the see_image tool to analyze test.jpg and tell me what objects are in it"
+```
+
+#### Using with Qwen Code CLI
+```bash
+# Verify MCP server is loaded
+/mcp
+
+# Use the tool
+"Use the see_image tool to describe input.jpg in detail"
+
+# For batch processing (Qwen's strength)
+"Use see_image to analyze all images in the folder and create a summary"
+```
+
+#### Using with Gemini CLI
+```bash
+# Verify configuration
+gemini mcp list
+
+# Use the tool
+"Use the see_image tool to analyze photo.jpg"
+
+# With structured output
+"Use see_image on diagram.jpg to extract all text and labels as JSON"
 ```
 
 ## Resource: `vision://health`
