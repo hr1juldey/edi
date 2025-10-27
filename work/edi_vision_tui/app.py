@@ -160,7 +160,7 @@ class VisionAnalysisModel:
     def test_system_detection(self, wrong_output_path: str) -> bool:
         """Test system by presenting wrong outputs to verify detection"""
         try:
-            from system_test import test_system_detection_with_wrong_output
+            from work.edi_vision_tui.system_test import test_system_detection_with_wrong_output
             
             # Use the actual system testing implementation
             # For this test, we'll use a generic prompt
