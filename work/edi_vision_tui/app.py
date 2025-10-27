@@ -1,501 +1,700 @@
 #!/usr/bin/env python3
 """
-EDI Vision Subsystem TUI App
-A textual TUI application for the EDI vision subsystem that accepts user input,
-extracts keywords, creates masks, sends mock edit requests, compares outputs,
-and detects changes inside/outside masks.
+Enhanced mask generator for precise image editing.
+
+This script implements an adaptive mask generation system that:
+1. Extracts entities and edit requests from user prompts
+2. Uses a multi-step process with CLIP, YOLO, and SAM for mask generation
+3. Validates results with VLM to ensure accurate targeting
+4. Implements iterative refinement with debug logs
+
+Usage:
+    python adaptive_mask_generator.py --image input.jpg --prompt "change orange roofs to blue"
 """
 
-from textual.app import App, ComposeResult
-from textual.containers import Horizontal, Vertical, ScrollableContainer
-from textual.widgets import (
-    Button,
-    Input,
-    Label,
-    Static,
-    DataTable,
-    TabbedContent,
-    TabPane,
-    Markdown,
-    Log
-)
-from textual import events
-from textual.binding import Binding
-from textual.message import Message
-from textual.screen import Screen
-from textual.widgets import Footer
+import cv2
+import numpy as np
+import torch
+from PIL import Image
+import open_clip
+from ultralytics import SAM, YOLO
+import matplotlib.pyplot as plt 
+from typing import List, Dict
 import re
+import logging
+from functools import lru_cache
+import json
+import requests
+import argparse
 import os
-from pathlib import Path
 
 
-class VisionAnalysisModel:
-    """Model to handle vision analysis logic"""
-    
-    def __init__(self):
-        self.entities = []
-        self.masks = []
-        self.edit_results = {}
-        self.comparison_results = {}
-        
-    def extract_keywords(self, prompt: str) -> list:
-        """Extract keywords from the user prompt"""
-        # Use the advanced mask generator's keyword extraction functionality
-        from mask_generator import decompose_prompt
-        return decompose_prompt(prompt)
-
-    def create_masks(self, image_path: str, keywords: list) -> list:
-        """Function to create masks around entities using SAM and CLIP"""
-        try:
-            from mask_generator import generate_mask_for_prompt
-            
-            if not keywords:
-                return []
-            
-            # Combine all keywords into a single prompt for mask generation
-            combined_prompt = " and ".join(keywords)
-            
-            # Generate mask using the actual implementation with SAM/CLIP
-            result = generate_mask_for_prompt(image_path, combined_prompt)
-            
-            if not result['success']:
-                raise Exception(f"Mask generation failed: {result['error']}")
-            
-            # Create mask objects with the generated mask
-            masks = []
-            for i, keyword in enumerate(keywords):
-                mask = {
-                    'id': f'mask_{i}',
-                    'keyword': keyword,
-                    'bbox': result['bbox'],  # Use the bounding box from the generation
-                    'mask_data': result['mask'],  # Store the actual mask data
-                    'confidence': 0.8 + (i * 0.02)  # Confidence with slight variation
-                }
-                masks.append(mask)
-            
-            return masks
-            
-        except ImportError:
-            # Fallback to mock implementation if dependencies are not available
-            print("Warning: SAM/CLIP not available, using mock implementation")
-            return self._create_mock_masks(image_path, keywords)
-        except Exception as e:
-            print(f"Error in mask generation: {e}, using mock implementation")
-            return self._create_mock_masks(image_path, keywords)
-
-    def _create_mock_masks(self, image_path: str, keywords: list) -> list:
-        """Mock function to create masks around entities"""
-        # In a real implementation, this would use SAM to create masks
-        # For now, return mock masks
-        
-        if not keywords:
-            return []
-        
-        # Create mock masks for each keyword
-        masks = []
-        for i, keyword in enumerate(keywords):
-            # Create a mock mask with simple properties
-            mask = {
-                'id': f'mask_{i}',
-                'keyword': keyword,
-                'bbox': (i * 10, i * 10, i * 10 + 100, i * 10 + 100),  # (x1, y1, x2, y2)
-                'confidence': 0.8 + (i * 0.05)  # Confidence decreases slightly with each mask
-            }
-            masks.append(mask)
-        
-        return masks
-
-    def send_mock_edit_request(self, image_path: str, keywords: list, masks: list) -> str:
-        """Send a mock edit request and return output image path"""
-        from mock_edit import send_mock_edit_request as process_mock_edit
-        
-        # Combine keywords into a single prompt
-        prompt = " and ".join(keywords) if keywords else "edit image"
-        
-        # Process the mock edit
-        result = process_mock_edit(image_path, prompt, masks)
-        
-        if result['success'] and result['output_path']:
-            return result['output_path']
-        else:
-            # If mock edit fails, just copy the input
-            import shutil
-            input_path = Path(image_path)
-            fallback_path = input_path.parent / f"fallback_{input_path.name}"
-            shutil.copy2(image_path, fallback_path)
-            return str(fallback_path)
-
-    def compare_output(self, input_path: str, output_path: str, expected_keywords: list, masks: list = None) -> dict:
-        """Compare input and output images to detect changes inside/outside masks"""
-        try:
-            from change_detector import compare_output
-            
-            if masks is None:
-                masks = []
-            
-            # Use the actual change detection implementation
-            result = compare_output(input_path, output_path, expected_keywords, masks)
-            
-            return result
-            
-        except ImportError:
-            # Fallback to mock implementation
-            print("Warning: Change detection module not available, using mock implementation")
-            return self._compare_output_mock(input_path, output_path, expected_keywords)
-        except Exception as e:
-            print(f"Error in change detection: {e}, using mock implementation")
-            return self._compare_output_mock(input_path, output_path, expected_keywords)
-
-    def _compare_output_mock(self, input_path: str, output_path: str, expected_keywords: list) -> dict:
-        """Mock comparison for fallback"""
-        return {
-            'alignment_score': 0.75,
-            'changes_inside': len(expected_keywords),
-            'changes_outside': 1,  # Mock: 1 unintended change
-            'detected_entities': expected_keywords,
-            'preserved_entities': ['sky', 'grass', 'background'],
-            'unintended_changes': ['grass color', 'tree shadow']
-        }
-
-    def test_system_detection(self, wrong_output_path: str) -> bool:
-        """Test system by presenting wrong outputs to verify detection"""
-        try:
-            from work.edi_vision_tui.system_test import test_system_detection_with_wrong_output
-            
-            # Use the actual system testing implementation
-            # For this test, we'll use a generic prompt
-            result = test_system_detection_with_wrong_output(
-                image_path=wrong_output_path, 
-                wrong_output_path=wrong_output_path, 
-                prompt="test edit"
-            )
-            
-            # Return True if the system correctly detected the wrong output
-            return result.get('test_passed', False)
-            
-        except ImportError:
-            # Fallback to mock implementation
-            print("Warning: System test module not available, using mock implementation")
-            return self._test_system_detection_mock(wrong_output_path)
-        except Exception as e:
-            print(f"Error in system testing: {e}, using mock implementation")
-            return self._test_system_detection_mock(wrong_output_path)
-
-    def _test_system_detection_mock(self, wrong_output_path: str) -> bool:
-        """Mock system detection for fallback"""
-        # If it's one of the known wrong images (IP.jpeg or Pondicherry.jpg), 
-        # the system should detect that it's not the expected output
-        wrong_img_name = Path(wrong_output_path).name.lower()
-        if wrong_img_name in ['ip.jpeg', 'pondicherry.jpg']:
-            return True  # System correctly detected wrong output
-        return False  # System didn't detect it was wrong
+def load_image(path):
+    """Load image from path, converting BGR to RGB"""
+    img = cv2.imread(path)
+    if img is None:
+        raise FileNotFoundError(path)
+    return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
 
-class PromptInputScreen(Screen):
-    """Screen for entering the image editing prompt"""
-    
-    BINDINGS = [
-        Binding("ctrl+q", "quit", "Quit"),
-        Binding("ctrl+d", "toggle_dark", "Toggle Dark Mode"),
-    ]
-    
-    def __init__(self):
-        super().__init__()
-        self.model = VisionAnalysisModel()
-        self.image_path = ""
-        self.results = {}
-        
-    def compose(self) -> ComposeResult:
-        yield Vertical(
-            Label("EDI Vision Subsystem TUI", classes="title"),
-            Label("Enter your image editing prompt below:", classes="subtitle"),
-            Horizontal(
-                Label("Image Path:", classes="label"),
-                Input(placeholder="Enter image path (e.g., @images/IP.jpeg)", id="image-input"),
-                id="image-input-container", classes="input-container"
-            ),
-            Horizontal(
-                Label("Edit Prompt:", classes="label"),
-                Input(placeholder="e.g., edit the blue tin sheds in the image @images/IP.jpeg to green", id="prompt-input"),
-                id="prompt-input-container", classes="input-container"
-            ),
-            Horizontal(
-                Button("Process", id="process-button", variant="primary"),
-                id="process-button-container", classes="button-container"
-            ),
-            Horizontal(
-                Button("Clear", id="clear-button"),
-                Button("Help", id="help-button"),
-                id="other-buttons-container", classes="button-container"
-            ),
-            Label("Results will appear below:", classes="subtitle"),
-            DataTable(id="results-table", classes="results-table"),
-            Label("Log:", classes="log-label"),
-            Log(id="log"),
-            id="main-container"
-        )
-        yield Footer()
-
-    def on_mount(self) -> None:
-        """Called when the widget is mounted."""
-        # Set up the data table
-        table = self.query_one("#results-table", DataTable)
-        table.add_columns("Type", "Value")
-        table.zebra_stripes = True
-
-    def on_input_submitted(self, message: Input.Submitted) -> None:
-        """Handle input submission."""
-        if message.input.id == "prompt-input":
-            self.process_request()
-
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        """Handle button presses."""
-        if event.button.id == "process-button":
-            self.process_request()
-        elif event.button.id == "clear-button":
-            self.clear_inputs()
-        elif event.button.id == "help-button":
-            self.show_help()
-
-    def process_request(self) -> None:
-        """Process the image editing request"""
-        # Get inputs
-        image_input = self.query_one("#image-input", Input)
-        prompt_input = self.query_one("#prompt-input", Input)
-        
-        image_path = image_input.value.strip()
-        prompt = prompt_input.value.strip()
-        
-        if not image_path or not prompt:
-            self.log("Error: Both image path and prompt are required")
-            return
-        
-        # Handle relative image paths starting with @
-        if image_path.startswith('@'):
-            image_path = image_path[1:]  # Remove @
-        
-        # Check if image exists
-        if not os.path.exists(image_path):
-            self.log(f"Error: Image file does not exist: {image_path}")
-            return
-        
-        self.image_path = image_path
-        
-        # Clear previous results
-        table = self.query_one("#results-table", DataTable)
-        table.clear()
-        
-        # Log the process
-        self.log(f"Processing image: {image_path}")
-        self.log(f"Prompt: {prompt}")
-        
-        # Step 1: Extract keywords
-        self.write_log("Step 1: Extracting keywords...")
-        keywords = self.model.extract_keywords(prompt)
-        self.write_log(f"Extracted keywords: {keywords}")
-        table.add_row("Keywords", ", ".join(keywords) if keywords else "None")
-        
-        # Step 2: Create masks
-        self.write_log("Step 2: Creating masks...")
-        masks = self.model.create_masks(image_path, keywords)
-        self.write_log(f"Created {len(masks)} masks")
-        table.add_row("Masks Created", str(len(masks)))
-        
-        # Step 3: Send mock edit request
-        self.write_log("Step 3: Sending mock edit request...")
-        output_path = self.model.send_mock_edit_request(image_path, keywords, masks)
-        self.write_log(f"Mock edit result: {output_path}")
-        table.add_row("Output Path", output_path)
-        
-        # Step 4: Compare output to expected results
-        self.write_log("Step 4: Comparing output...")
-        comparison = self.model.compare_output(image_path, output_path, keywords, masks)
-        self.write_log(f"Comparison completed: {comparison}")
-        table.add_row("Alignment Score", f"{comparison['alignment_score']:.2f}")
-        table.add_row("Changes Inside", str(comparison['changes_inside']))
-        table.add_row("Changes Outside", str(comparison['changes_outside']))
-        
-        # Step 5: Test system detection with wrong outputs
-        self.write_log("Step 5: Testing system detection...")
-        test_result = self.model.test_system_detection(image_path)  # Test with input image (should be detected as wrong)
-        self.write_log(f"System detection test: {'PASSED' if test_result else 'FAILED'}")
-        table.add_row("System Detection", "PASSED" if test_result else "FAILED")
-        
-        # Store results for potential further analysis
-        self.results = {
-            'image_path': image_path,
-            'prompt': prompt,
-            'keywords': keywords,
-            'masks': masks,
-            'output_path': output_path,
-            'comparison': comparison,
-            'detection_test': test_result
-        }
-        
-        self.write_log("Processing completed successfully!")
-    
-    def clear_inputs(self) -> None:
-        """Clear all input fields"""
-        self.query_one("#image-input", Input).value = ""
-        self.query_one("#prompt-input", Input).value = ""
-        self.query_one("#results-table", DataTable).clear()
-        self.write_log("Cleared all inputs and results")
-    
-    def show_help(self) -> None:
-        """Show help information"""
-        help_text = """
-# EDI Vision Subsystem Help
-
-## How to use:
-1. Enter the path to your image file (use `@images/filename.jpg` for images in the images directory)
-2. Enter your edit prompt: e.g., "edit the blue tin sheds in the image @images/IP.jpeg to green"
-3. Click "Process" to run the vision subsystem
-
-## Features:
-- **Keyword Extraction**: Automatically identifies key entities in your prompt (e.g., "blue tin sheds")
-- **Mask Generation**: Creates segmentation masks around detected entities
-- **Mock Edit Requests**: Simulates sending edit requests to the editing system
-- **Output Comparison**: Compares input and output images to detect changes
-- **Change Detection**: Identifies changes inside and outside the targeted masks
-- **System Testing**: Verifies detection of incorrect outputs
-
-## Supported Keywords:
-- Colors: red, blue, green, yellow, etc.
-- Objects: building, shed, house, tree, car, person, sky, etc.
-- Complex terms: "blue tin shed", "red roof", etc.
-        """
-        
-        # Create a new screen for the help
-        class HelpScreen(Screen):
-            def compose(self) -> ComposeResult:
-                yield Vertical(
-                    Markdown(help_text),
-                    Button("Back", id="back-button", variant="primary"),
-                    id="help-container"
-                )
-            
-            def on_button_pressed(self, event: Button.Pressed) -> None:
-                if event.button.id == "back-button":
-                    self.app.pop_screen()
-        
-        self.app.push_screen(HelpScreen())
-    
-    def write_log(self, message: str) -> None:
-        """Add message to the log widget"""
-        try:
-            log_widget = self.query_one("#log", Log)
-            log_widget.write_line(message)
-        except:
-            # If we can't log, just print to console
-            print(f"LOG: {message}")
-    
-    def action_toggle_dark(self) -> None:
-        """Toggle dark mode."""
-        self.dark = not self.dark
-    
-    def action_quit(self) -> None:
-        """Quit the application."""
-        self.app.exit()
-
-
-class EDIVisionApp(App):
-    """Main EDI Vision Subsystem TUI Application"""
-    
-    CSS = """
-    Screen {
-        background: $surface;
-    }
-    
-    #main-container {
-        layout: grid;
-        grid-size: 1;
-        grid-gutter: 1 2;
-        grid-rows: auto auto auto auto auto auto auto;
-        height: 100%;
-        padding: 1;
-    }
-    
-    .title {
-        text-style: bold;
-        text-align: center;
-        margin: 1 0;
-    }
-    
-    .subtitle {
-        text-style: bold;
-        text-align: center;
-        margin: 1 0;
-    }
-    
-    .label {
-        width: 15;
-        text-align: right;
-        margin-right: 1;
-    }
-    
-    #image-input, #prompt-input {
-        width: 1fr;
-    }
-    
-    .input-container {
-        height: auto;
-        layout: horizontal;
-        align: center middle;
-        padding: 0 1;
-    }
-    
-    .button-container {
-        height: auto;
-        layout: horizontal;
-        align: center middle;
-        column-span: 1;
-    }
-    
-    .results-table {
-        height: 15;
-        border: solid $primary;
-        margin: 1 0;
-    }
-    
-    .log-label {
-        text-style: bold;
-        margin: 1 0 0 0;
-    }
-    
-    #log {
-        height: 10;
-        border: solid $secondary;
-        margin: 0 0 1 0;
-    }
-    
-    #help-container {
-        height: 100%;
-        width: 100%;
-        padding: 1;
-    }
+@lru_cache(maxsize=1)
+def _load_clip(device):
     """
+    Load CLIP model + transform once and cache it.
+    Tries multiple pretrained tags and logs each attempt.
+    """
+    logger = logging.getLogger("_load_clip")
+    if not logger.handlers:
+        logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
-    TITLE = "EDI Vision Subsystem TUI"
-    SUB_TITLE = "Edit with Intelligence - Vision Analysis"
-    BINDINGS = [
-        ("ctrl+q", "quit", "Quit"),
-        ("ctrl+d", "toggle_dark", "Toggle Dark Mode"),
+    model_name = "ViT-B-32"
+    candidates = ("openai", "laion2b_s34b_b79k", "laion400m_e32")
+    errors = {}
+
+    for pretrained in candidates:
+        try:
+            logger.info(f"Attempting to load CLIP model '{model_name}' with pretrained='{pretrained}'...")
+            clip_model, clip_transform, _ = open_clip.create_model_and_transforms(
+                model_name, pretrained=pretrained
+            )
+            clip_model.to(device)
+            clip_model.eval()
+            logger.info(f"Successfully loaded CLIP model with '{pretrained}'.")
+            return clip_model, clip_transform
+
+        except FileNotFoundError as e:
+            errors[pretrained] = f"File not found: {e}"
+            logger.warning(f"Pretrained weights '{pretrained}' not found.")
+        except (RuntimeError, OSError) as e:
+            errors[pretrained] = str(e)
+            logger.warning(f"Runtime error loading '{pretrained}': {e}")
+        except Exception as e:
+            errors[pretrained] = f"Unexpected error: {e.__class__.__name__}: {e}"
+            logger.error(f"Unexpected error with '{pretrained}': {e}", exc_info=True)
+
+    # If none succeeded
+    error_summary = "\n".join([f" - {k}: {v}" for k, v in errors.items()])
+    raise RuntimeError(
+        f"Failed to load any CLIP model from {candidates}. Errors:\n{error_summary}"
+    )
+
+
+def extract_entities_and_request(prompt: str) -> Dict[str, str]:
+    """
+    Extract entities and edit request from user prompt.
+    
+    Returns:
+        dict: Contains 'entities' (comma-separated string) and 'edit_request' (what to do with entities)
+    """
+    # Define regex patterns for edit instructions
+    edit_patterns = [
+        r'change\s+(.*?)\s+to\s+(.*)',
+        r'make\s+(.*?)\s+(.*)',
+        r'turn\s+(.*?)\s+into\s+(.*)',
+        r'convert\s+(.*?)\s+to\s+(.*)',
+        r'repaint\s+(.*?)\s+(.*)',
+        r'recolor\s+(.*?)\s+(.*)',
     ]
+    
+    # Try to extract entities and edit request
+    for pattern in edit_patterns:
+        match = re.search(pattern, prompt, re.IGNORECASE)
+        if match:
+            entities = match.group(1).strip()
+            edit_target = match.group(2).strip()
+            return {
+                'entities': entities,
+                'edit_request': f"to {edit_target}",
+                'full_request': f"{entities} {edit_target}"
+            }
+    
+    # If no pattern matched, return the whole prompt as entities with no specific edit request
+    return {
+        'entities': prompt,
+        'edit_request': '',
+        'full_request': prompt
+    }
 
-    def on_mount(self) -> None:
-        """Called when the app is mounted."""
-        self.push_screen(PromptInputScreen())
 
-    def action_toggle_dark(self) -> None:
-        """Toggle dark mode."""
-        self.dark = not self.dark
+def get_clip_masks(image, entities, masks, k=5, device=None):
+    """
+    Use CLIP to rank SAM masks based on entity matching.
+    
+    Args:
+        image: Input image
+        entities: String of entities to match
+        masks: SAM-generated masks
+        k: Number of top masks to return
+        device: Device to run on
+    
+    Returns:
+        List of tuples (idx, similarity_score, mask)
+    """
+    device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+    clip_model, clip_transform = _load_clip(device)
+    
+    logging.info(f"Using CLIP to match entities: '{entities}'")
+    text_tokens = open_clip.tokenize([entities]).to(device)
+    with torch.no_grad():
+        text_emb = clip_model.encode_text(text_tokens)
+        text_emb = text_emb / text_emb.norm(dim=-1, keepdim=True)
+    
+    scores = []
+    for i in range(masks.shape[0]):
+        m = (masks[i] > 0.5).astype(np.uint8)
+        ys, xs = np.where(m > 0)
+        
+        if ys.size == 0 or (ys.max() - ys.min()) < 8 or (xs.max() - xs.min()) < 8:
+            scores.append((i, -99.0, m))
+            continue
+        
+        y1, y2 = int(ys.min()), int(ys.max())
+        x1, x2 = int(xs.min()), int(xs.max())
+        
+        crop = image[y1:y2+1, x1:x2+1]
+        pil = Image.fromarray(crop)
+        inp = clip_transform(pil).unsqueeze(0).to(device)
+        
+        with torch.no_grad():
+            img_emb = clip_model.encode_image(inp)
+            img_emb = img_emb / img_emb.norm(dim=-1, keepdim=True)
+            sim = float((text_emb @ img_emb.T).cpu().item())
+        
+        scores.append((i, sim, m))
+    
+    # Sort by similarity, take top-k
+    scores_sorted = sorted(scores, key=lambda x: x[1], reverse=True)
+    topk = scores_sorted[:min(k, len(scores_sorted))]
+    
+    logging.info(f"CLIP found {len(topk)} masks matching '{entities}' (top scores: {[f'{s:.3f}' for _, s, _ in topk[:3]]})")
+    return [(idx, sim, mask) for idx, sim, mask in topk if sim > 0.1]  # threshold
+
+
+def run_yolo_detection(image, entities, model_path='yolo11n.pt'):
+    """
+    Run YOLO object detection on the image for specified entities.
+    
+    Args:
+        image: Input image
+        entities: Entities to detect (comma-separated string)
+        model_path: Path to YOLO model
+    
+    Returns:
+        List of detection results with bounding boxes and confidences
+    """
+    logging.info(f"Running YOLO detection for entities: '{entities}'")
+    
+    try:
+        yolo_model = YOLO(model_path)
+        
+        # Prepare classes for detection - need to match YOLO's standard classes
+        # Since YOLO may not recognize "tin shed" or other specific entities,
+        # we'll use the most general classes that might match
+        general_entities = []
+        entity_list = [e.strip() for e in entities.split(',')]
+        
+        for entity in entity_list:
+            # Map specific entities to YOLO's standard classes
+            if any(word in entity for word in ['building', 'structure', 'shed', 'house', 'roof', 'door']):
+                general_entities.extend(['building', 'person', 'car'])  # Common objects in image
+            elif any(word in entity for word in ['sky', 'cloud', 'sun', 'moon']):
+                general_entities.append('sky')  # This is not a standard YOLO class
+            else:
+                general_entities.append('object')  # General fallback
+        
+        # Since YOLO has fixed class names, run detection with standard classes
+        results = yolo_model(image, verbose=False)
+        
+        detections = []
+        for result in results:
+            boxes = result.boxes
+            if boxes is not None:
+                for box in boxes:
+                    # Get class name and confidence
+                    cls_id = int(box.cls[0])
+                    conf = float(box.conf[0])
+                    b = box.xyxy[0].cpu().numpy()  # x1, y1, x2, y2
+                    
+                    # Skip low-confidence detections
+                    if conf > 0.3:
+                        detections.append({
+                            'class_id': cls_id,
+                            'confidence': conf,
+                            'bbox': [int(b[0]), int(b[1]), int(b[2]), int(b[3])]
+                        })
+        
+        logging.info(f"YOLO found {len(detections)} detections")
+        return detections
+    except Exception as e:
+        logging.warning(f"YOLO detection failed: {e}")
+        return []
+
+
+def analyze_image_with_vlm(image, prompt, entities, edit_request, mask=None):
+    """
+    Analyze image with VLM to validate if the detected objects match the edit request.
+    
+    Args:
+        image: Input image
+        prompt: Original user prompt
+        entities: Extracted entities
+        edit_request: Edit request part
+        mask: Binary mask (numpy array) of the region to validate. If None, validates the whole image.
+    
+    Returns:
+        dict: Analysis result with validation score
+    """
+    try:
+        # Convert image to base64 for API
+        import base64
+        from io import BytesIO
+        
+        if isinstance(image, np.ndarray):
+            if len(image.shape) == 3:  # Color image
+                pil_image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+            else:  # Grayscale
+                pil_image = Image.fromarray(image)
+        
+        # Save original image to base64
+        buffer = BytesIO()
+        pil_image.save(buffer, format='JPEG')
+        img_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+        
+        # Create a cropped image of the masked region if mask is provided
+        mask_images = []
+        if mask is not None and np.any(mask > 0):
+            # Get bounding box of the mask
+            ys, xs = np.where(mask > 0)
+            if len(ys) > 0 and len(xs) > 0:
+                y1, y2 = int(ys.min()), int(ys.max())
+                x1, x2 = int(xs.min()), int(xs.max())
+                
+                # Crop the image to the mask region
+                crop = image[y1:y2+1, x1:x2+1]
+                
+                # Convert cropped image to base64
+                crop_pil = Image.fromarray(cv2.cvtColor(crop, cv2.COLOR_BGR2RGB))
+                crop_buffer = BytesIO()
+                crop_pil.save(crop_buffer, format='JPEG')
+                crop_base64 = base64.b64encode(crop_buffer.getvalue()).decode('utf-8')
+                mask_images.append(crop_base64)
+        
+        # Prepare the request to Ollama API
+        ollama_url = "http://localhost:11434/api/generate"
+        
+        # Create a detailed prompt for the VLM, now including mask context
+        if mask is not None:
+            vlm_prompt = f"""Analyze the provided images to validate whether the specific region highlighted by the mask is consistent with the description '{entities}'.
+
+Context:
+- User wants to edit: '{entities}' {edit_request}
+- I have generated a mask that highlights a region in the image.
+- Please examine the masked region (provided as a separate cropped image) and determine if it is a reasonable match for the description '{entities}'.
+
+Instructions:
+1. Look at the full image to get context.
+2. Examine the cropped image, which shows ONLY the masked region.
+3. Answer the following questions specifically about the masked region:
+   - Does this region show an object that could reasonably be described as '{entities}'?
+   - Is this region appropriate for the requested edit ('{edit_request}')?
+   - What is your confidence level (0.0-1.0) that this is a suitable region to edit based on the user's request?
+   - Provide a short feedback comment explaining your assessment.
+
+Respond in JSON format with:
+- 'valid_objects_found': boolean indicating if the masked region is a reasonable match for the description
+- 'confidence': confidence score between 0.0 and 1.0
+- 'feedback': string with feedback on the accuracy of the mask
+- 'location_description': string describing what you see in the masked region
+
+Example format:
+{{"valid_objects_found": true, "confidence": 0.8, "feedback": "Masked region shows a blue roof, which is a reasonable match for 'Blue tin roof'.", "location_description": "Blue roof on a building"}}"""
+        else:
+            vlm_prompt = f"""Analyze this image and validate whether the objects matching the request '{prompt}' are correctly identified.
+
+Context:
+- User wants to edit: '{entities}' {edit_request}
+- Focus on finding objects that match: '{entities}'
+- Evaluate if the regions in the image that match '{entities}' are appropriate for editing
+
+Respond in JSON format with:
+- 'valid_objects_found': boolean whether objects matching the request exist
+- 'locations': array of objects with 'bbox': [x1, y1, x2, y2] and 'description': string
+- 'confidence': confidence score between 0.0 and 1.0 that these objects are what the user wants to edit
+- 'feedback': string with feedback on the accuracy of object detection
+
+Example format:
+{{"valid_objects_found": true, "locations": [{{"bbox": [100, 200, 300, 400], "description": "blue roof"}}], "confidence": 0.9, "feedback": "Object correctly identified"}}"""
+        
+        # Use models that are actually available
+        models_to_try = ["qwen2.5vl:7b", "qwen3:8b", "gemma3:4b", "mistral:7b"]
+        
+        for model in models_to_try:
+            data = {
+                "model": model,
+                "prompt": vlm_prompt,
+                "images": [img_base64] + mask_images,  # Send both original and masked crops if available
+                "format": "json",
+                "stream": False
+            }
+            
+            response = requests.post(ollama_url, json=data)
+            
+            if response.status_code == 200:
+                result = response.json()
+                if 'response' in result:
+                    try:
+                        analysis = json.loads(result['response'])
+                        logging.info(f"VLM analysis for '{entities}' (mask={mask is not None}): {analysis}")
+                        return analysis
+                    except json.JSONDecodeError:
+                        continue
+            elif response.status_code == 404:
+                logging.info(f"Model {model} not found, trying next model...")
+                continue
+            else:
+                logging.warning(f"VLM analysis failed for model {model}")
+        
+        logging.warning("All VLM models failed")
+        
+    except Exception as e:
+        logging.warning(f"VLM analysis failed: {e}")
+    
+    # Return a default structure if API fails
+    return {
+        "valid_objects_found": False,
+        "confidence": 0.0,
+        "feedback": "VLM analysis failed",
+        "location_description": "Unknown"
+    }
+
+
+def generate_mask_from_detections(image, detections, sam_model):
+    """
+    Generate masks from YOLO detections using SAM.
+    
+    Args:
+        image: Input image
+        detections: YOLO detection results
+        sam_model: SAM model instance
+    
+    Returns:
+        Combined mask from all detections
+    """
+    if not detections:
+        return None
+    
+    masks_list = []
+    
+    for detection in detections:
+        bbox = detection['bbox']
+        x1, y1, x2, y2 = bbox
+        
+        # Get mask for this specific bounding box
+        results = sam_model(image, bboxes=[[x1, y1, x2, y2]], verbose=False)
+        mask_data = results[0].masks.data
+        
+        if mask_data is not None and mask_data.shape[0] > 0:
+            # Convert to numpy and get the first mask
+            mask = mask_data[0].cpu().numpy()
+            mask_binary = (mask > 0.5).astype(np.uint8)
+            
+            # Validate the mask
+            if mask_binary.sum() > 100:  # At least 100 pixels
+                masks_list.append(mask_binary)
+    
+    # Combine all masks if we have any
+    if masks_list:
+        combined = np.zeros_like(masks_list[0], dtype=np.uint8)
+        for mask in masks_list:
+            combined = np.logical_or(combined, mask).astype(np.uint8)
+        return combined
+    else:
+        return None
+
+
+def post_process_mask(mask, min_area=50):
+    """
+    Clean up mask with morphological operations.
+    - Remove small isolated regions
+    - Fill small holes
+    - Smooth boundaries
+    """
+    if mask is None:
+        return None
+        
+    # Remove small components
+    num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
+    cleaned = np.zeros_like(mask)
+    
+    for i in range(1, num_labels):  # skip background (0)
+        area = stats[i, cv2.CC_STAT_AREA]
+        if area >= min_area:
+            cleaned[labels == i] = 1
+    
+    # Morphological closing (fill small holes)
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+    cleaned = cv2.morphologyEx(cleaned, cv2.MORPH_CLOSE, kernel)
+    
+    # Slight dilation to ensure coverage
+    kernel_dilate = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    cleaned = cv2.dilate(cleaned, kernel_dilate, iterations=1)
+    
+    return cleaned.astype(np.uint8)
+
+
+def adaptive_mask_generation(image, prompt, max_attempts=3):
+    """
+    Adaptive mask generation with iterative refinement.
+    
+    Args:
+        image: Input image
+        prompt: User's edit request
+        max_attempts: Maximum number of refinement attempts
+    
+    Returns:
+        dict: Mask and validation results
+    """
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    
+    # Extract entities and edit request from prompt
+    extraction_result = extract_entities_and_request(prompt)
+    entities = extraction_result['entities']
+    edit_request = extraction_result['edit_request']
+    full_request = extraction_result['full_request']
+    
+    logging.info(f"Extracted entities: '{entities}', edit request: '{edit_request}'")
+    
+    # Initialize models
+    try:
+        sam = SAM("sam2.1_l.pt")  # Use larger model for better precision
+    except Exception as e:
+        logging.info(f"SAM 2.1_l.pt not available: {e}, trying base model...")
+        try:
+            sam = SAM("sam2.1_b.pt")
+        except Exception as e2:
+            logging.info(f"SAM 2.1 models not available: {e2}, falling back...")
+            sam = SAM('mobile_sam.pt')
+    
+    success = False
+    final_mask = None
+    attempt = 0
+    
+    for attempt in range(max_attempts):
+        logging.info(f"Attempt {attempt + 1}/{max_attempts}")
+        
+        # Stage 1: Use CLIP to identify relevant regions
+        logging.info("Stage 1: Running SAM to generate candidate masks...")
+        sam_results = sam(image, verbose=False)
+        masks_t = sam_results[0].masks.data
+        
+        if masks_t is None or masks_t.shape[0] == 0:
+            logging.warning("SAM returned no masks")
+            continue
+        
+        masks = masks_t.cpu().numpy()
+        logging.info(f"SAM generated {masks.shape[0]} candidate masks")
+        
+        # Stage 2: Use CLIP to identify masks matching entities
+        logging.info("Stage 2: Using CLIP to match entities...")
+        clip_results = get_clip_masks(image, entities, masks, k=10, device=device)
+        
+        # Stage 3: Run YOLO for specific object detection
+        logging.info("Stage 3: Running YOLO for object detection...")
+        yolo_detections = run_yolo_detection(image, entities)
+        
+        # Stage 4: Generate masks from YOLO detections if available
+        if yolo_detections:
+            logging.info(f"Using {len(yolo_detections)} YOLO detections for mask generation")
+            mask_from_detections = generate_mask_from_detections(image, yolo_detections, sam)
+        else:
+            logging.info("No YOLO detections, falling back to CLIP-selected masks")
+            # Use CLIP-selected masks as fallback
+            if clip_results:
+                clip_masks = [mask for _, _, mask in clip_results[:5]]  # Top 5 CLIP matches
+                if len(clip_masks) > 0:
+                    mask_from_detections = np.zeros_like(clip_masks[0], dtype=np.uint8)
+                    for mask in clip_masks:
+                        mask_from_detections = np.logical_or(mask_from_detections, mask).astype(np.uint8)
+                else:
+                    mask_from_detections = None
+            else:
+                mask_from_detections = None
+        
+        # Stage 5: Validate with VLM
+        if mask_from_detections is not None:
+            logging.info("Stage 4: Validating mask with VLM...")
+            vlm_validation = analyze_image_with_vlm(image, prompt, entities, edit_request, mask=mask_from_detections)
+            
+            # Check if YOLO and VLM agree on the mask validity
+            yolo_success = len(yolo_detections) > 0
+            vlm_success = vlm_validation.get('valid_objects_found', False)
+            vlm_confidence = vlm_validation.get('confidence', 0)
+            
+            logging.info(f"Validation results - YOLO success: {yolo_success}, VLM success: {vlm_success}, VLM confidence: {vlm_confidence:.2f}")
+            
+            # If both YOLO and VLM agree, we have a successful mask
+            if vlm_success and vlm_confidence > 0.5:
+                logging.info(f"Valid mask generated with VLM confidence {vlm_confidence:.2f}")
+                final_mask = post_process_mask(mask_from_detections)
+                success = True
+                break
+            else:
+                logging.info(f"Attempt failed - VLM confidence {vlm_confidence:.2f} too low or objects not validated")
+                # Add more specific feedback from VLM
+                feedback = vlm_validation.get('feedback', '')
+                logging.info(f"VLM FEEDBACK: {feedback}")
+        else:
+            logging.info("No valid mask generated")
+    
+    # If all attempts failed, try a general mask based on CLIP
+    if not success and clip_results:
+        logging.info("All attempts failed, using best CLIP-based mask as fallback")
+        best_mask = clip_results[0][2] if clip_results else None
+        if best_mask is not None:
+            final_mask = post_process_mask(best_mask)
+            success = True
+    
+    return {
+        'mask': final_mask,
+        'success': success,
+        'attempts': attempt + 1,
+        'entity_extraction': extraction_result
+    }
+
+
+def generate_mask_for_prompt(image_path: str, prompt: str) -> dict:
+    """
+    Main function to generate a mask for a given image and prompt.
+    Returns a dictionary with mask information.
+    """
+    try:
+        # Load image
+        image = load_image(image_path)
+        
+        # Generate mask using adaptive mask generator
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        print(f"we are using the {device} for inference")
+        result = adaptive_mask_generation(image, prompt, max_attempts=3)
+        
+        if result['mask'] is not None:
+            # Calculate bounding box for the mask
+            ys, xs = np.where(result['mask'] > 0)
+            if len(ys) > 0 and len(xs) > 0:
+                x1, x2 = int(xs.min()), int(xs.max())
+                y1, y2 = int(ys.min()), int(ys.max())
+                
+                # Add some padding to the bounding box to ensure full coverage
+                padding = 10
+                x1 = max(0, x1 - padding)
+                y1 = max(0, y1 - padding)
+                x2 = min(image.shape[1], x2 + padding)
+                y2 = min(image.shape[0], y2 + padding)
+                
+                bbox = (x1, y1, x2, y2)
+            else:
+                bbox = (0, 0, 0, 0)  # Default if no mask found
+            
+            # Calculate coverage percentage
+            coverage = result['mask'].sum() / result['mask'].size if result['mask'].size > 0 else 0.0
+        else:
+            bbox = (0, 0, 0, 0)
+            coverage = 0.0
+        
+        return {
+            'mask': result['mask'],
+            'bbox': bbox,
+            'coverage': coverage,
+            'success': result['success'],
+            'attempts': result['attempts'],
+            'entity_extraction': result['entity_extraction'],
+            'error': None
+        }
+        
+    except Exception as e:
+        return {
+            'mask': None,
+            'bbox': (0, 0, 0, 0),
+            'coverage': 0.0,
+            'success': False,
+            'attempts': 0,
+            'entity_extraction': {},
+            'error': str(e)
+        }
+
+
+def apply_mask_to_image(image_path, mask_path, output_path):
+    """
+    Apply a mask to an image and save the superimposed result.
+    
+    Args:
+        image_path: Path to the original image
+        mask_path: Path to the mask image
+        output_path: Path to save the superimposed image
+    """
+    # Load the original image
+    original_image = cv2.imread(image_path)
+    original_image = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)
+    
+    # Load the mask
+    mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
+    
+    # Resize mask to match image dimensions if needed
+    if mask.shape[:2] != original_image.shape[:2]:
+        mask = cv2.resize(mask, (original_image.shape[1], original_image.shape[0]), interpolation=cv2.INTER_NEAREST)
+    
+    # Create a colored overlay (red for masked regions)
+    overlay = original_image.copy()
+    overlay[mask > 0] = [255, 0, 0]  # Set masked pixels to red
+    
+    # Blend the original and overlay (70% original, 30% overlay)
+    superimposed = cv2.addWeighted(original_image, 0.7, overlay, 0.3, 0)
+    
+    # Save the result
+    result_image = Image.fromarray(superimposed.astype('uint8'))
+    result_image.save(output_path)
+    logging.info(f"Saved superimposed image to {output_path}")
 
 
 def main():
-    """Run the application"""
-    app = EDIVisionApp()
-    app.run()
+    parser = argparse.ArgumentParser(description="Adaptive Mask Generator for Precise Image Editing")
+    parser.add_argument("--image", required=True, help="Input image path")
+    parser.add_argument("--prompt", required=True, help="Edit prompt")
+    parser.add_argument("--output", default="result_mask.png", help="Output mask path")
+    parser.add_argument("--apply-to-image", action="store_true", help="Apply mask to original image and save superimposed result")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Enable debug logging")
+    
+    args = parser.parse_args()
+    
+    if args.verbose:
+        logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+    else:
+        logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
+    
+    logging.info(f"Processing image '{args.image}' with prompt '{args.prompt}'")
+    
+    # Generate mask
+    result = generate_mask_for_prompt(args.image, args.prompt)
+    
+    if result['mask'] is not None:
+        # Save the mask
+        mask_img = (result['mask'] * 255).astype(np.uint8)
+        cv2.imwrite(args.output, mask_img)
+        logging.info(f"Saved mask to {args.output}")
+        
+        # Apply mask to original image if requested
+        if args.apply_to_image:
+            apply_mask_to_image(args.image, args.output, f"superimposed_{args.output}")
+        
+        logging.info("Mask generation successful!")
+        logging.info(f"  - Success: {result['success']}")
+        logging.info(f"  - Attempts: {result['attempts']}")
+        logging.info(f"  - Coverage: {result['coverage']:.2%}")
+        logging.info(f"  - Entity extraction: {result['entity_extraction']}")
+    else:
+        logging.error(f"Mask generation failed: {result['error']}")
+        exit(1)
 
 
 if __name__ == "__main__":
+    torch.set_grad_enabled(False)
     main()
