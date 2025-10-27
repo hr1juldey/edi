@@ -204,7 +204,7 @@ def visualize_yolo_detections(
 
 if __name__ == "__main__":
     # Example usage with maximum detections
-    image_path = r"/home/riju279/Documents/Code/Zonko/EDI/edi/work/edi_vision_tui/test_output.jpeg"
+    image_path = r"/home/riju279/Documents/Code/Zonko/EDI/edi/work/edi_vision_tui/test_image.jpeg"
     
     # For quality detections - higher confidence to reduce false positives
     visualize_yolo_detections(
