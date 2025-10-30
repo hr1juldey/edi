@@ -1,0 +1,50 @@
+[
+  {
+    "image": "kol_1.png",
+    "prompt": "highlight all red vehicles",
+    "entities_detected": 1,
+    "total_time_seconds": 11.96803331375122,
+    "success": true,
+    "stage_timings": {
+      "stage1_entity_extraction": 0.005437374114990234,
+      "stage2_color_filter": 0.0036902427673339844,
+      "stage3_sam_segmentation": 6.293966293334961,
+      "stage4_clip_filter": 2.2300455570220947,
+      "stage5_organization": 0.0022559165954589844
+    },
+    "color_coverage_percent": 8.653638814016173,
+    "clip_filter_rate": 0.0
+  },
+  {
+    "image": "Darjeeling.jpg",
+    "prompt": "edit brown roofs",
+    "entities_detected": 2,
+    "total_time_seconds": 9.169674158096313,
+    "success": true,
+    "stage_timings": {
+      "stage1_entity_extraction": 0.0031905174255371094,
+      "stage2_color_filter": 0.003362417221069336,
+      "stage3_sam_segmentation": 5.772336483001709,
+      "stage4_clip_filter": 1.4136147499084473,
+      "stage5_organization": 0.015913724899291992
+    },
+    "color_coverage_percent": 100.0,
+    "clip_filter_rate": 66.66666666666666
+  },
+  {
+    "image": "kol_1.png",
+    "prompt": "edit purple elements",
+    "entities_detected": 11,
+    "total_time_seconds": 10.008258581161499,
+    "success": true,
+    "stage_timings": {
+      "stage1_entity_extraction": 0.003193378448486328,
+      "stage2_color_filter": 0.0009753704071044922,
+      "stage3_sam_segmentation": 5.73517918586731,
+      "stage4_clip_filter": 1.5229346752166748,
+      "stage5_organization": 0.026434898376464844
+    },
+    "color_coverage_percent": 100.0,
+    "clip_filter_rate": 38.88888888888889
+  }
+]
