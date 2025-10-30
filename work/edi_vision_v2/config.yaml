@@ -1,0 +1,39 @@
+# Vision pipeline configuration
+pipeline:
+  enable_validation: true      # Run VLM validation
+  save_intermediate: false     # Save intermediate outputs
+  output_dir: "logs"           # Where to save logs
+
+# Stage 2: Color filtering
+color_filter:
+  blue: [[90, 50, 50], [130, 255, 255]]
+  green: [[40, 50, 50], [80, 255, 255]]
+  red: [[0, 50, 50], [10, 255, 255]]
+  red_wrap: [[170, 50, 50], [180, 255, 255]]  # Red wraps around hue
+  yellow: [[20, 50, 50], [30, 255, 255]]
+  orange: [[10, 50, 50], [20, 255, 255]]
+  white: [[0, 0, 200], [180, 30, 255]]
+  black: [[0, 0, 0], [180, 255, 30]]
+  gray: [[0, 0, 50], [180, 50, 200]]
+
+# Stage 3: SAM segmentation
+sam:
+  model: "sam2.1_b.pt"
+  min_area: 500
+  color_overlap_threshold: 0.5
+
+# Stage 4: CLIP filtering
+clip:
+  model: "ViT-B-32"
+  similarity_threshold: 0.22
+
+# Stage 6: VLM validation
+vlm:
+  ollama_url: "http://localhost:11434/api/generate"
+  model: "qwen2.5vl:7b"
+  timeout: 30
+
+# Logging
+logging:
+  level: "WARNING"  # DEBUG, INFO, WARNING, ERROR
+  format: "[%(levelname)s] %(message)s"

@@ -1,0 +1,14 @@
+{
+  "user_intent": "change blue tin roofs to green",
+  "detected_count": 14,
+  "covers_all_targets": false,
+  "confidence": 0.7,
+  "feedback": "The red masked areas do not correctly identify all target entities. There are some blue roofs that are not covered by the red mask, and there are also some red roofs that are not targeted.",
+  "target_coverage": 0.6,
+  "false_positive_ratio": 0.4,
+  "missing_targets": "The red masked areas do not cover all blue roofs. Some red roofs are also not targeted.",
+  "suggestions": [
+    "Expand the red masked areas to cover all blue roofs.",
+    "Exclude any red roofs that should not be targeted."
+  ]
+}

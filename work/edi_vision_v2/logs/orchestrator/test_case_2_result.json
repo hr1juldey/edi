@@ -1,0 +1,43 @@
+{
+  "success": true,
+  "entity_count": 17,
+  "stage_timings": {
+    "stage1_entity_extraction": 20.292109489440918,
+    "stage2_color_filter": 0.003513813018798828,
+    "stage3_sam_segmentation": 6.135127305984497,
+    "stage4_clip_filter": 1.3642988204956055,
+    "stage5_organization": 0.06968164443969727,
+    "stage6_validation": 60.20321035385132
+  },
+  "metadata": {
+    "image_shape": [
+      1024,
+      1024,
+      3
+    ],
+    "image_path": "test_image.jpeg",
+    "intent": {
+      "target_entities": [
+        {
+          "label": "roof",
+          "color": "blue",
+          "texture": null,
+          "size_descriptor": null
+        }
+      ],
+      "edit_type": "recolor",
+      "new_value": "green",
+      "quantity": "all",
+      "confidence": 0.95
+    },
+    "color_coverage": 66.37821197509766,
+    "sam_masks_count": 17,
+    "clip_filtered_count": 17,
+    "filter_rate": 0.0,
+    "final_entity_count": 17,
+    "total_time": 88.06794142723083
+  },
+  "validation": {
+    "confidence": 0.0
+  }
+}

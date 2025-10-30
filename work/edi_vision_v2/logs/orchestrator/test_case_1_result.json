@@ -1,0 +1,43 @@
+{
+  "success": true,
+  "entity_count": 17,
+  "stage_timings": {
+    "stage1_entity_extraction": 0.0047283172607421875,
+    "stage2_color_filter": 0.003306150436401367,
+    "stage3_sam_segmentation": 7.0343077182769775,
+    "stage4_clip_filter": 1.9614293575286865,
+    "stage5_organization": 0.06873083114624023,
+    "stage6_validation": 60.219587564468384
+  },
+  "metadata": {
+    "image_shape": [
+      1024,
+      1024,
+      3
+    ],
+    "image_path": "test_image.jpeg",
+    "intent": {
+      "target_entities": [
+        {
+          "label": "tin roof",
+          "color": "blue",
+          "texture": null,
+          "size_descriptor": null
+        }
+      ],
+      "edit_type": "recolor",
+      "new_value": "green",
+      "quantity": "all",
+      "confidence": 1.0
+    },
+    "color_coverage": 66.37821197509766,
+    "sam_masks_count": 17,
+    "clip_filtered_count": 17,
+    "filter_rate": 0.0,
+    "final_entity_count": 17,
+    "total_time": 69.29208993911743
+  },
+  "validation": {
+    "confidence": 0.0
+  }
+}
