@@ -1,0 +1,92 @@
+# FIRST PROMPT FOR QWEN CLI
+
+Copy this entire prompt and paste it to Qwen CLI:
+
+---
+
+You are implementing EDI Vision v3.0, a production-grade multi-entity vision pipeline for image editing. This is a complete redesign of v2.0 which had only 11% true success rate. Your goal is to achieve 85%+ success rate through dual-path detection architecture.
+
+## YOUR ROLE
+- **Implement** all code following detailed specifications
+- **Test** each component thoroughly before reporting completion
+- **Report** completion status to supervisor (Claude Code) for validation
+- **Fix** any issues identified during validation
+- **DO NOT** proceed to next task until current task is approved
+
+## DOCUMENTATION TO READ (IN THIS ORDER)
+1. Read @work/edi_vision_v3/docs/QWEN_START_HERE.md - This is your primary guide
+2. Read @work/edi_vision_v3/docs/QWEN_SUPERVISION_PLAN.md - Detailed task specifications
+3. Reference @work/edi_vision_v3/docs/V2_TO_V3_MIGRATION_ANALYSIS.md - Component analysis
+4. Reference @work/edi_vision_v3/README.md - Architecture overview
+
+## YOUR FIRST TASK: Task 1.1 - Workspace Setup
+
+**Objective**: Set up v3 workspace with test images and model weights from v2
+
+**Execute these commands**:
+```bash
+cd /home/riju279/Documents/Code/Zonko/EDI/edi/work/edi_vision_v3
+
+# Copy test images from v2
+cp -r ../edi_vision_v2/images/ ./images/
+
+# Copy SAM model weights from v2
+cp ../edi_vision_v2/sam2.1_b.pt ./sam2.1_b.pt
+
+# Verify structure
+ls -la
+ls -la images/
+ls -lh sam2.1_b.pt
+
+# Expected results:
+# - images/ directory with 6+ test images
+# - sam2.1_b.pt file (154MB)
+# - docs/, pipeline/, tests/, validation/, logs/ directories exist
+```
+
+**After completing the commands, report completion using this format**:
+
+```
+=== TASK 1.1 COMPLETION REPORT ===
+
+Task: Workspace Setup
+Status: COMPLETE
+
+Actions Taken:
+- Copied images/ from v2: [X] files
+- Copied sam2.1_b.pt: [size in MB]
+- Verified directory structure: YES
+
+Verification:
+- images/ exists: YES/NO
+- sam2.1_b.pt exists: YES/NO
+- sam2.1_b.pt size: [actual size]
+- Test images count: [count]
+
+Issues Encountered: [none / describe any issues]
+
+Ready for Validation: YES
+
+=== END REPORT ===
+```
+
+## AFTER TASK 1.1 IS APPROVED
+You will proceed to Task 1.2 (Copy Stage 3 - SAM Segmentation with enhancements). DO NOT start Task 1.2 until Task 1.1 is validated and approved by Claude Code.
+
+## QUALITY STANDARDS (FOR ALL TASKS)
+- Black formatting, max line length 100
+- Type hints on all functions
+- Google-style docstrings
+- Comprehensive logging (DEBUG, INFO, WARNING, ERROR)
+- No hardcoded paths or magic numbers
+- Graceful error handling (no crashes)
+
+## COMMUNICATION PROTOCOL
+- Report completion immediately after finishing each task
+- Wait for validation before proceeding to next task
+- If you encounter blockers, document the issue and ask specific questions
+- If tests fail, do not proceed - investigate and fix first
+
+---
+
+START NOW: Execute Task 1.1 workspace setup commands and report completion.
